@@ -403,6 +403,34 @@ export function ConfigPanel() {
               className="w-full mt-0.5 px-2 py-1 rounded bg-white/5 border border-white/10 text-white text-xs"
             />
           </label>
+          {/* Stage Type */}
+          <div>
+            <span className="text-[10px] text-white/50">Stage Type</span>
+            <div className="flex gap-1 mt-0.5">
+              {(
+                [
+                  ["circle", "Circle"],
+                  ["rectangle", "Rectangle"],
+                  ["basketball", "Basketball"],
+                  ["hockey", "Hockey"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  className={`flex-1 text-[10px] py-1 rounded transition-colors ${
+                    venueConfig.stageType === value
+                      ? "bg-blue-500/20 text-blue-400"
+                      : "bg-white/5 text-white/40 hover:bg-white/10"
+                  }`}
+                  onClick={() =>
+                    setVenueConfig({ ...venueConfig, stageType: value })
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <RangeField
             label="Stage Radius"
             value={venueConfig.stageRadius}
@@ -413,6 +441,30 @@ export function ConfigPanel() {
               setVenueConfig({ ...venueConfig, stageRadius: v })
             }
           />
+          {venueConfig.stageType !== "circle" && (
+            <div className="flex gap-2">
+              <RangeField
+                label="Stage Width"
+                value={venueConfig.stageWidth}
+                min={4}
+                max={30}
+                step={0.5}
+                onChange={(v) =>
+                  setVenueConfig({ ...venueConfig, stageWidth: v })
+                }
+              />
+              <RangeField
+                label="Stage Length"
+                value={venueConfig.stageLength}
+                min={4}
+                max={40}
+                step={0.5}
+                onChange={(v) =>
+                  setVenueConfig({ ...venueConfig, stageLength: v })
+                }
+              />
+            </div>
+          )}
           <RangeField
             label="Row Spacing"
             value={venueConfig.rowSpacing}

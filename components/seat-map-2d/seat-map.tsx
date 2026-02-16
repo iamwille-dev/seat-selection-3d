@@ -37,25 +37,50 @@ export function SeatMap() {
           viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
           className="w-full h-full max-w-[500px] max-h-[500px]"
         >
-          {/* Stage circle */}
-          <circle
-            cx={cx}
-            cy={cy}
-            r={computedVenue.config.stageRadius * SCALE * 0.7}
-            fill="#1e293b"
-            stroke="#475569"
-            strokeWidth={1}
-          />
+          {/* Stage / court */}
+          {computedVenue.config.stageType === "circle" ? (
+            <circle
+              cx={cx}
+              cy={cy}
+              r={computedVenue.config.stageRadius * SCALE * 0.7}
+              fill="#1e293b"
+              stroke="#475569"
+              strokeWidth={1}
+            />
+          ) : (
+            <rect
+              x={cx - (computedVenue.config.stageWidth / 2) * SCALE}
+              y={cy - (computedVenue.config.stageLength / 2) * SCALE}
+              width={computedVenue.config.stageWidth * SCALE}
+              height={computedVenue.config.stageLength * SCALE}
+              rx={computedVenue.config.stageType === "hockey" ? 12 : 2}
+              fill={
+                computedVenue.config.stageType === "basketball"
+                  ? "#8B5E3C"
+                  : computedVenue.config.stageType === "hockey"
+                  ? "#c8daf0"
+                  : "#1e293b"
+              }
+              stroke="#475569"
+              strokeWidth={1}
+            />
+          )}
           <text
             x={cx}
             y={cy}
             textAnchor="middle"
             dominantBaseline="central"
-            fill="#94a3b8"
-            fontSize={14}
+            fill={computedVenue.config.stageType === "circle" ? "#94a3b8" : "#ffffff80"}
+            fontSize={12}
             fontWeight="bold"
           >
-            STAGE
+            {computedVenue.config.stageType === "basketball"
+              ? "COURT"
+              : computedVenue.config.stageType === "hockey"
+              ? "RINK"
+              : computedVenue.config.stageType === "rectangle"
+              ? "FIELD"
+              : "STAGE"}
           </text>
 
           {computedVenue.sections.map((section) => (

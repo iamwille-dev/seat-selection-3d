@@ -1,7 +1,10 @@
 export interface VenueConfig {
   name: string;
   sections: SectionConfig[];
+  stageType: "circle" | "rectangle" | "basketball" | "hockey";
   stageRadius: number;
+  stageWidth: number;   // X dimension for rectangular stages
+  stageLength: number;  // Z dimension for rectangular stages
   rowSpacing: number;
   seatSpacing: number;
 }
