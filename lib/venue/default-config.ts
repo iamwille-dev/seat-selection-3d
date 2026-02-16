@@ -55,7 +55,7 @@ export const defaultVenueConfig: VenueConfig = {
     // Upper tier
     {
       id: "U1",
-      label: "Upper A",
+      label: "VIP A",
       startAngle: -PI * 0.35,
       endAngle: PI * 0.35,
       rows: 5,
@@ -66,7 +66,7 @@ export const defaultVenueConfig: VenueConfig = {
     },
     {
       id: "U2",
-      label: "Upper C",
+      label: "VVIP C",
       startAngle: PI * 1.05,
       endAngle: PI * 1.55,
       rows: 5,

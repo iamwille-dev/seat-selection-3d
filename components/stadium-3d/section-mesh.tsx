@@ -2,11 +2,20 @@
 
 import { useRef, useEffect, useMemo } from "react";
 import * as THREE from "three";
+import { useGLTF } from "@react-three/drei";
 import { useVenueStore } from "@/lib/store";
 import { ComputedSection } from "@/lib/venue/types";
 
+// Lowpoly model is ~1.4 x 1.9 x 1.7 units; scale to ~0.42 x 0.57 x 0.50
+const SEAT_SCALE = 0.3;
+
 const tempObject = new THREE.Object3D();
 const tempColor = new THREE.Color();
+const qStandUp = new THREE.Quaternion().setFromAxisAngle(
+  new THREE.Vector3(1, 0, 0),
+  Math.PI / 2,
+);
+const qFace = new THREE.Quaternion();
 
 interface SectionMeshProps {
   section: ComputedSection;
@@ -19,15 +28,21 @@ export function SectionMesh({ section }: SectionMeshProps) {
   const setSelectedSeat = useVenueStore((s) => s.setSelectedSeat);
   const setHoveredSeat = useVenueStore((s) => s.setHoveredSeat);
 
+  const { scene } = useGLTF("/stadium_seat_lowpoly.glb");
+
   const seats = section.seats;
   const baseColor = section.config.color;
 
-  // Build a seat ID -> instance index map
-  const seatIndexMap = useMemo(() => {
-    const map = new Map<string, number>();
-    seats.forEach((seat, i) => map.set(seat.id, i));
-    return map;
-  }, [seats]);
+  // Extract geometry from the first mesh found in the GLB
+  const geometry = useMemo(() => {
+    let geo: THREE.BufferGeometry | null = null;
+    scene.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh && !geo) {
+        geo = (child as THREE.Mesh).geometry;
+      }
+    });
+    return geo!;
+  }, [scene]);
 
   // Set instance transforms
   useEffect(() => {
@@ -36,8 +51,10 @@ export function SectionMesh({ section }: SectionMeshProps) {
 
     seats.forEach((seat, i) => {
       tempObject.position.set(...seat.position);
-      tempObject.rotation.set(...seat.rotation);
-      tempObject.scale.set(1, 1, 1);
+      // Compose via quaternions: first stand model upright, then rotate to face stage
+      qFace.setFromAxisAngle(new THREE.Vector3(0, 1, 0), seat.rotation[1]);
+      tempObject.quaternion.multiplyQuaternions(qFace, qStandUp);
+      tempObject.scale.setScalar(SEAT_SCALE);
       tempObject.updateMatrix();
       mesh.setMatrixAt(i, tempObject.matrix);
     });
@@ -69,7 +86,7 @@ export function SectionMesh({ section }: SectionMeshProps) {
   return (
     <instancedMesh
       ref={meshRef}
-      args={[undefined, undefined, seats.length]}
+      args={[geometry, undefined, seats.length]}
       onPointerOver={(e) => {
         e.stopPropagation();
         const instanceId = e.instanceId;
@@ -86,8 +103,9 @@ export function SectionMesh({ section }: SectionMeshProps) {
         }
       }}
     >
-      <boxGeometry args={[0.5, 0.5, 0.5]} />
-      <meshStandardMaterial />
+      <meshStandardMaterial roughness={0.6} metalness={0.1} />
     </instancedMesh>
   );
 }
+
+useGLTF.preload("/stadium_seat_lowpoly.glb");
