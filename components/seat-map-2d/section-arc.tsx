@@ -4,13 +4,14 @@ import { useMemo, useState } from "react";
 import { useVenueStore } from "@/lib/store";
 import { ComputedSection } from "@/lib/venue/types";
 
-interface SectionArcProps {
+interface SectionShapeProps {
   section: ComputedSection;
   scale: number;
   cx: number;
   cy: number;
   stageRadius: number;
   rowSpacing: number;
+  seatSpacing: number;
 }
 
 function arcPath(
@@ -19,7 +20,7 @@ function arcPath(
   innerR: number,
   outerR: number,
   startAngle: number,
-  endAngle: number
+  endAngle: number,
 ): string {
   const ix1 = cx + innerR * Math.cos(startAngle);
   const iy1 = cy + innerR * Math.sin(startAngle);
@@ -41,6 +42,47 @@ function arcPath(
   ].join(" ");
 }
 
+function rectPath(
+  cx: number,
+  cy: number,
+  section: ComputedSection["config"],
+  scale: number,
+  rowSpacing: number,
+  seatSpacing: number,
+): { d: string; labelX: number; labelY: number } {
+  const facing = section.facing;
+  const perpX = Math.cos(facing + Math.PI / 2);
+  const perpZ = Math.sin(facing + Math.PI / 2);
+  const fwdX = Math.cos(facing);
+  const fwdZ = Math.sin(facing);
+
+  const halfWidth = ((section.seatsPerRow - 1) / 2) * seatSpacing + seatSpacing * 0.5;
+  const innerDist = rowSpacing * 0.5;
+  const outerDist = (section.rows + 0.5) * rowSpacing;
+
+  // 4 corners of the rectangle in world space, mapped to SVG
+  const corners = [
+    [-halfWidth, innerDist],
+    [halfWidth, innerDist],
+    [halfWidth, outerDist],
+    [-halfWidth, outerDist],
+  ].map(([perp, fwd]) => {
+    const wx = section.x + fwdX * fwd + perpX * perp;
+    const wz = section.z + fwdZ * fwd + perpZ * perp;
+    return `${cx + wx * scale},${cy + wz * scale}`;
+  });
+
+  const midFwd = (innerDist + outerDist) / 2;
+  const labelWx = section.x + fwdX * midFwd;
+  const labelWz = section.z + fwdZ * midFwd;
+
+  return {
+    d: `M ${corners.join(" L ")} Z`,
+    labelX: cx + labelWx * scale,
+    labelY: cy + labelWz * scale,
+  };
+}
+
 export function SectionArc({
   section,
   scale,
@@ -48,29 +90,34 @@ export function SectionArc({
   cy,
   stageRadius,
   rowSpacing,
-}: SectionArcProps) {
+  seatSpacing,
+}: SectionShapeProps) {
   const [hovered, setHovered] = useState(false);
   const setSelectedSection = useVenueStore((s) => s.setSelectedSection);
   const selectedSectionId = useVenueStore((s) => s.selectedSectionId);
 
   const { config } = section;
   const isActive = config.id === selectedSectionId;
-
-  const innerR = (stageRadius + rowSpacing) * scale;
-  const outerR = (stageRadius + config.rows * rowSpacing + rowSpacing * 0.5) * scale;
-
-  const d = useMemo(
-    () => arcPath(cx, cy, innerR, outerR, config.startAngle, config.endAngle),
-    [cx, cy, innerR, outerR, config.startAngle, config.endAngle]
-  );
-
-  // Label at center of arc
-  const midAngle = (config.startAngle + config.endAngle) / 2;
-  const midR = (innerR + outerR) / 2;
-  const labelX = cx + midR * Math.cos(midAngle);
-  const labelY = cy + midR * Math.sin(midAngle);
-
   const seatCount = config.rows * config.seatsPerRow;
+
+  const { d, labelX, labelY } = useMemo(() => {
+    if (config.type === "rectangular") {
+      return rectPath(cx, cy, config, scale, rowSpacing, seatSpacing);
+    }
+
+    // Arc
+    const innerR = (stageRadius + rowSpacing) * scale;
+    const outerR = (stageRadius + config.rows * rowSpacing + rowSpacing * 0.5) * scale;
+    const d = arcPath(cx, cy, innerR, outerR, config.startAngle, config.endAngle);
+
+    const midAngle = (config.startAngle + config.endAngle) / 2;
+    const midR = (innerR + outerR) / 2;
+    return {
+      d,
+      labelX: cx + midR * Math.cos(midAngle),
+      labelY: cy + midR * Math.sin(midAngle),
+    };
+  }, [cx, cy, config, scale, stageRadius, rowSpacing, seatSpacing]);
 
   return (
     <g

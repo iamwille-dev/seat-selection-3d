@@ -9,8 +9,15 @@ export interface VenueConfig {
 export interface SectionConfig {
   id: string;
   label: string;
+  type: "arc" | "rectangular";
+  // Arc-specific (used when type === "arc")
   startAngle: number;
   endAngle: number;
+  // Rectangular-specific (used when type === "rectangular")
+  x: number;
+  z: number;
+  facing: number; // radians, direction seats face toward
+  // Common
   rows: number;
   seatsPerRow: number;
   elevation: number;

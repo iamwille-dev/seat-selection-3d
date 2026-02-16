@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useVenueStore } from "@/lib/store";
 import { SectionConfig } from "@/lib/venue/types";
+import { venuePresets } from "@/lib/venue/default-config";
 
 const DEG = Math.PI / 180;
 const toDeg = (rad: number) => Math.round((rad / DEG) * 10) / 10;
@@ -72,9 +73,10 @@ function SectionEditor({
   const patch = (partial: Partial<SectionConfig>) =>
     onUpdate({ ...section, ...partial });
 
+  const isArc = section.type === "arc";
+
   return (
     <div className="border border-white/10 rounded-md overflow-hidden">
-      {/* Section header row */}
       <button
         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 transition-colors text-left"
         onClick={() => setExpanded(!expanded)}
@@ -86,6 +88,9 @@ function SectionEditor({
         <span className="text-xs font-medium text-white/90 flex-1 truncate">
           {section.label}
         </span>
+        <span className="text-[9px] text-white/30 uppercase">
+          {section.type === "arc" ? "arc" : "rect"}
+        </span>
         <span className="text-[10px] text-white/30">
           {section.rows}&times;{section.seatsPerRow}
         </span>
@@ -96,6 +101,34 @@ function SectionEditor({
 
       {expanded && (
         <div className="px-3 pb-3 pt-1 border-t border-white/5 space-y-1.5">
+          {/* Type selector */}
+          <div className="flex gap-1">
+            <button
+              className={`flex-1 text-[10px] py-1 rounded transition-colors ${
+                isArc
+                  ? "bg-blue-500/20 text-blue-400"
+                  : "bg-white/5 text-white/40 hover:bg-white/10"
+              }`}
+              onClick={() =>
+                patch({ type: "arc", startAngle: 0, endAngle: toRad(90) })
+              }
+            >
+              Arc
+            </button>
+            <button
+              className={`flex-1 text-[10px] py-1 rounded transition-colors ${
+                !isArc
+                  ? "bg-blue-500/20 text-blue-400"
+                  : "bg-white/5 text-white/40 hover:bg-white/10"
+              }`}
+              onClick={() =>
+                patch({ type: "rectangular", x: 0, z: 0, facing: toRad(90) })
+              }
+            >
+              Rectangular
+            </button>
+          </div>
+
           {/* Label & ID */}
           <div className="flex gap-2">
             <label className="flex-1 block">
@@ -142,25 +175,56 @@ function SectionEditor({
             </div>
           </div>
 
-          {/* Arc angles */}
-          <div className="flex gap-2">
-            <RangeField
-              label="Start angle"
-              value={toDeg(section.startAngle)}
-              min={-180}
-              max={360}
-              step={5}
-              onChange={(v) => patch({ startAngle: toRad(v) })}
-            />
-            <RangeField
-              label="End angle"
-              value={toDeg(section.endAngle)}
-              min={-180}
-              max={360}
-              step={5}
-              onChange={(v) => patch({ endAngle: toRad(v) })}
-            />
-          </div>
+          {/* Type-specific fields */}
+          {isArc ? (
+            <div className="flex gap-2">
+              <RangeField
+                label="Start angle"
+                value={toDeg(section.startAngle)}
+                min={-180}
+                max={360}
+                step={5}
+                onChange={(v) => patch({ startAngle: toRad(v) })}
+              />
+              <RangeField
+                label="End angle"
+                value={toDeg(section.endAngle)}
+                min={-180}
+                max={360}
+                step={5}
+                onChange={(v) => patch({ endAngle: toRad(v) })}
+              />
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <RangeField
+                  label="Position X"
+                  value={section.x}
+                  min={-30}
+                  max={30}
+                  step={0.5}
+                  onChange={(v) => patch({ x: v })}
+                />
+                <RangeField
+                  label="Position Z"
+                  value={section.z}
+                  min={-30}
+                  max={30}
+                  step={0.5}
+                  onChange={(v) => patch({ z: v })}
+                />
+              </div>
+              <RangeField
+                label="Facing"
+                value={toDeg(section.facing)}
+                min={-180}
+                max={360}
+                step={5}
+                onChange={(v) => patch({ facing: toRad(v) })}
+              />
+            </>
+          )}
 
           {/* Rows & seats */}
           <div className="flex gap-2">
@@ -202,7 +266,6 @@ function SectionEditor({
             />
           </div>
 
-          {/* Remove */}
           <button
             onClick={onRemove}
             className="w-full mt-1 text-[10px] py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
@@ -219,6 +282,7 @@ export function ConfigPanel() {
   const [open, setOpen] = useState(false);
   const venueConfig = useVenueStore((s) => s.venueConfig);
   const setVenueConfig = useVenueStore((s) => s.setVenueConfig);
+  const setSelectedSection = useVenueStore((s) => s.setSelectedSection);
 
   function updateSection(index: number, section: SectionConfig) {
     const sections = [...venueConfig.sections];
@@ -231,23 +295,46 @@ export function ConfigPanel() {
     setVenueConfig({ ...venueConfig, sections });
   }
 
-  function addSection() {
+  function addSection(type: "arc" | "rectangular") {
     const id = genId();
-    const newSection: SectionConfig = {
+    const base = {
       id,
       label: `Section ${id}`,
-      startAngle: 0,
-      endAngle: toRad(60),
       rows: 5,
       seatsPerRow: 12,
       elevation: 0.5,
       tilt: 0.35,
       color: PRESET_COLORS[venueConfig.sections.length % PRESET_COLORS.length],
     };
+    const newSection: SectionConfig =
+      type === "arc"
+        ? {
+            ...base,
+            type: "arc",
+            startAngle: 0,
+            endAngle: toRad(60),
+            x: 0,
+            z: 0,
+            facing: 0,
+          }
+        : {
+            ...base,
+            type: "rectangular",
+            startAngle: 0,
+            endAngle: 0,
+            x: 0,
+            z: 0,
+            facing: toRad(90),
+          };
     setVenueConfig({
       ...venueConfig,
       sections: [...venueConfig.sections, newSection],
     });
+  }
+
+  function loadPreset(key: string) {
+    setSelectedSection(null);
+    setVenueConfig(venuePresets[key]);
   }
 
   if (!open) {
@@ -278,6 +365,28 @@ export function ConfigPanel() {
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+        {/* Presets */}
+        <div className="space-y-2">
+          <h3 className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">
+            Presets
+          </h3>
+          <div className="flex gap-1">
+            {Object.entries(venuePresets).map(([key, preset]) => (
+              <button
+                key={key}
+                onClick={() => loadPreset(key)}
+                className={`flex-1 text-[10px] py-1.5 rounded transition-colors ${
+                  venueConfig.name === preset.name
+                    ? "bg-blue-500/20 text-blue-400"
+                    : "bg-white/5 text-white/50 hover:bg-white/10"
+                }`}
+              >
+                {preset.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Global settings */}
         <div className="space-y-2">
           <h3 className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">
@@ -297,7 +406,7 @@ export function ConfigPanel() {
           <RangeField
             label="Stage Radius"
             value={venueConfig.stageRadius}
-            min={4}
+            min={2}
             max={15}
             step={0.5}
             onChange={(v) =>
@@ -332,12 +441,20 @@ export function ConfigPanel() {
             <h3 className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">
               Sections ({venueConfig.sections.length})
             </h3>
-            <button
-              onClick={addSection}
-              className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
-            >
-              + Add
-            </button>
+            <div className="flex gap-1">
+              <button
+                onClick={() => addSection("arc")}
+                className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+              >
+                + Arc
+              </button>
+              <button
+                onClick={() => addSection("rectangular")}
+                className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+              >
+                + Rect
+              </button>
+            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -353,7 +470,7 @@ export function ConfigPanel() {
 
           {venueConfig.sections.length === 0 && (
             <div className="text-xs text-white/30 text-center py-4">
-              No sections. Click + Add to create one.
+              No sections. Add an arc or rectangular section.
             </div>
           )}
         </div>

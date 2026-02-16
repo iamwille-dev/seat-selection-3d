@@ -67,6 +67,7 @@ export function SeatMap() {
               cy={cy}
               stageRadius={computedVenue.config.stageRadius}
               rowSpacing={computedVenue.config.rowSpacing}
+              seatSpacing={computedVenue.config.seatSpacing}
             />
           ))}
         </svg>
